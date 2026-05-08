@@ -153,6 +153,51 @@ def wick_bear(bars):
     return ((c["h"] - max(c["o"], c["c"])) / total >= 0.5
             and (c["h"] - c["c"]) / total >= 0.7)
 
+# ── Structure & key levels ────────────────────────────────────────────────────
+
+def detect_structure(bars):
+    """Detect most recent BOS direction from H1 klines.
+    Returns 'bullish', 'bearish', or 'unknown'."""
+    if len(bars) < 6:
+        return "unknown"
+    window  = bars[-20:]
+    mid     = len(window) // 2
+    highs   = [b["h"] for b in window]
+    lows    = [b["l"] for b in window]
+    made_hh = max(highs[mid:]) > max(highs[:mid])
+    made_ll = min(lows[mid:])  < min(lows[:mid])
+    if made_hh and not made_ll:
+        return "bullish"
+    if made_ll and not made_hh:
+        return "bearish"
+    # tiebreaker: last closed candle direction
+    return "bullish" if window[-2]["c"] > window[-2]["o"] else "bearish"
+
+def build_key_levels(price, lvl, zones):
+    """Collect up to 5 nearest price levels (Asia H/L, PDH/PDL, zone boundaries)."""
+    candidates = []
+    for k, label in [("asia_high", "Asia High"), ("asia_low", "Asia Low"),
+                     ("pdh", "PDH"), ("pdl", "PDL")]:
+        v = lvl.get(k)
+        if v:
+            candidates.append({"label": label, "price": round(v, 2)})
+    # Add current zone boundaries
+    for name, lo, hi in zones:
+        if lo <= price < hi:
+            if lo > 0:
+                candidates.append({"label": f"{name}_lo", "price": round(lo, 2)})
+            if hi != float("inf"):
+                candidates.append({"label": f"{name}_hi", "price": round(hi, 2)})
+            break
+    # Deduplicate, sort by proximity to current price, return 5 closest
+    seen, unique = set(), []
+    for c in candidates:
+        if c["price"] not in seen:
+            seen.add(c["price"])
+            unique.append(c)
+    unique.sort(key=lambda x: abs(x["price"] - price))
+    return unique[:5]
+
 # ── Killzone ──────────────────────────────────────────────────────────────────
 
 def kz():
@@ -294,13 +339,17 @@ def main():
     score, bd, verdict = confluence(btc_p, eth_p, btc_h1, eth_h1, btc_lvl, eth_lvl, dxy)
     setup, s_note      = detect_setup(btc_p, eth_p, btc_h1, eth_h1, btc_lvl, eth_lvl, score)
     sig                = signal_text(setup, s_note, score, bd, btc_p, btc_lvl) if setup else None
-    btc_z = zone_of(btc_p, BTC_ZONES)
-    eth_z = zone_of(eth_p, ETH_ZONES)
-    vr    = vol_ratio(btc_h1)
+    btc_z         = zone_of(btc_p, BTC_ZONES)
+    eth_z         = zone_of(eth_p, ETH_ZONES)
+    vr            = vol_ratio(btc_h1)
+    btc_structure = detect_structure(btc_h1)
+    btc_key_levels = build_key_levels(btc_p, btc_lvl, BTC_ZONES)
 
     # Checkpoint
     state = {
-        "ts":  now_vn.strftime("%Y-%m-%dT%H:%M") + " GMT+7",
+        "ts":             now_vn.strftime("%Y-%m-%dT%H:%M") + " GMT+7",
+        "last_structure": btc_structure,
+        "key_levels":     btc_key_levels,
         "kz":  {"active": in_kz_now, "label": kz_label},
         "btc": {"price": round(btc_p, 2), "zone": btc_z, "vol_ratio": vr,
                 "engulfing": eng_bull(btc_h1) or eng_bear(btc_h1),
