@@ -13,6 +13,7 @@ CHAT_ID = "7850734762"
 TG_URL  = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
 
 MONITOR_STATE = Path(__file__).parent / "monitor_state.json"
+STATE_FILE    = Path(__file__).parent / "market_state.json"
 
 # ── Key levels ─────────────────────────────────────────────────────────────────
 BTC_LEVELS = {
@@ -103,12 +104,26 @@ def load_prev_zones():
 def save_zones(btc_z, eth_z):
     MONITOR_STATE.write_text(json.dumps({"btc": btc_z, "eth": eth_z}))
 
+def check_data_freshness():
+    """Return (is_fresh, age_minutes). Reads ts from market_state.json."""
+    try:
+        state   = json.loads(STATE_FILE.read_text())
+        ts_str  = state.get("ts", "").replace(" GMT+7", "")
+        ts_vn   = datetime.datetime.strptime(ts_str, "%Y-%m-%dT%H:%M")
+        now_vn  = datetime.datetime.utcnow() + datetime.timedelta(hours=7)
+        age_min = (now_vn - ts_vn).total_seconds() / 60
+        return age_min <= 5, round(age_min, 1)
+    except Exception:
+        return False, -1
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
-    now_gmt7 = datetime.datetime.utcnow() + datetime.timedelta(hours=7)
-    kz       = killzone()
-    kz_str   = "✅ KILLZONE" if kz else "⏸ Ngoài KZ"
+    now_gmt7           = datetime.datetime.utcnow() + datetime.timedelta(hours=7)
+    is_fresh, data_age = check_data_freshness()
+    delay_tag          = f"[DATA DELAYED — {data_age}m] " if not is_fresh else ""
+    kz                 = killzone()
+    kz_str             = "✅ KILLZONE" if kz else "⏸ Ngoài KZ"
 
     btc_p  = price("BTCUSDT")
     eth_p  = price("ETHUSDT")
@@ -155,7 +170,7 @@ def main():
 
     if should_send:
         lines = [
-            f"📊 <b>MARKET MONITOR</b> — {now_gmt7.strftime('%H:%M')} GMT+7",
+            f"📊 <b>MARKET MONITOR</b> — {delay_tag}{now_gmt7.strftime('%H:%M')} GMT+7",
             f"⏰ {kz_str}",
             "",
             f"<b>BTC</b>  ${btc_p:,.1f}",
@@ -175,7 +190,7 @@ def main():
         print("SENT:", "\n".join(lines))
     else:
         # Silent — update checkpoint only
-        print(f"SILENT: {now_gmt7.strftime('%H:%M')} BTC ${btc_p:,.1f} [{btc_z}]"
+        print(f"{delay_tag}SILENT: {now_gmt7.strftime('%H:%M')} BTC ${btc_p:,.1f} [{btc_z}]"
               f"  ETH ${eth_p:,.2f} [{eth_z}]  {kz_str}")
 
     # Always update trade_engine checkpoint
