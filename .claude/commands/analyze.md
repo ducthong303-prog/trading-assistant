@@ -8,7 +8,11 @@ Read **trade_engine output only** for the final verdict (session_analyzer data i
 
 **Response rules:**
 - Score ≤ 2 → "Thị trường chưa sẵn sàng." Stop. Do not force a setup.
-- Score 3   → Show §7 signal, label as "Đợi xác nhận", reduce size to minimum.
+- Score 3   → **DỪNG. Hỏi trước khi show §7.** Đặt câu hỏi này cho người dùng:
+              > "ForexFactory có tin đỏ/cam nào trong 4h tới không? (trả lời Có/Không)"
+              - Trả lời **Không** → show §7, label "Đợi xác nhận", size ≤ 0.5%.
+              - Trả lời **Có** → "Thị trường chưa sẵn sàng — tin mạnh trong 4h tới. Đứng ngoài." Dừng.
+              - Không trả lời → không show signal. Hỏi lại.
 - Score ≥ 4 → Show full §7 signal. Remind: verify HTF Bias on D1/H4 chart (MANUAL field in output).
 
 Do NOT re-read CLAUDE.md. All rules are encoded in trade_engine.py.
