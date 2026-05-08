@@ -1,0 +1,5 @@
+market_state.json
+monitor_state.json
+__pycache__/
+*.pyc
+.DS_Store
