@@ -119,11 +119,9 @@ def check_data_freshness():
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
-    now_gmt7           = datetime.datetime.utcnow() + datetime.timedelta(hours=7)
-    is_fresh, data_age = check_data_freshness()
-    delay_tag          = f"[DATA DELAYED — {data_age}m] " if not is_fresh else ""
-    kz                 = killzone()
-    kz_str             = "✅ KILLZONE" if kz else "⏸ Ngoài KZ"
+    now_gmt7 = datetime.datetime.utcnow() + datetime.timedelta(hours=7)
+    kz       = killzone()
+    kz_str   = "✅ KILLZONE" if kz else "⏸ Ngoài KZ"
 
     btc_p  = price("BTCUSDT")
     eth_p  = price("ETHUSDT")
@@ -170,7 +168,7 @@ def main():
 
     if should_send:
         lines = [
-            f"📊 <b>MARKET MONITOR</b> — {delay_tag}{now_gmt7.strftime('%H:%M')} GMT+7",
+            f"📊 <b>MARKET MONITOR</b> — {now_gmt7.strftime('%H:%M')} GMT+7",
             f"⏰ {kz_str}",
             "",
             f"<b>BTC</b>  ${btc_p:,.1f}",
@@ -190,10 +188,10 @@ def main():
         print("SENT:", "\n".join(lines))
     else:
         # Silent — update checkpoint only
-        print(f"{delay_tag}SILENT: {now_gmt7.strftime('%H:%M')} BTC ${btc_p:,.1f} [{btc_z}]"
+        print(f"SILENT: {now_gmt7.strftime('%H:%M')} BTC ${btc_p:,.1f} [{btc_z}]"
               f"  ETH ${eth_p:,.2f} [{eth_z}]  {kz_str}")
 
-    # Always update trade_engine checkpoint
+    # Update trade_engine checkpoint + check freshness AFTER this cycle's data
     try:
         subprocess.run(
             [sys.executable, str(Path(__file__).parent / "trade_engine.py"), "--silent"],
@@ -201,6 +199,10 @@ def main():
         )
     except Exception:
         pass
+
+    is_fresh, data_age = check_data_freshness()
+    if not is_fresh:
+        print(f"[DATA DELAYED — {data_age}m] checkpoint cũ, kiểm tra trade_engine")
 
 
 if __name__ == "__main__":
