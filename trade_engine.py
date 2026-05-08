@@ -399,5 +399,44 @@ def main():
     print()
 
 
+# ── Trade logger ──────────────────────────────────────────────────────────────
+
+LOG_FILE = Path(__file__).parent / "trade_log.json"
+
+def log_trade(data_str):
+    """Append a trade record (JSON string) into trade_log.json → trades array.
+    Keeps the existing account / weekly_summary structure intact.
+    Retains the 50 most recent trades."""
+    try:
+        new_trade = json.loads(data_str)
+    except json.JSONDecodeError as e:
+        print(f"❌ JSON không hợp lệ: {e}")
+        return
+
+    # Load existing file or create skeleton
+    if LOG_FILE.exists():
+        with open(LOG_FILE, "r", encoding="utf-8") as f:
+            log = json.load(f)
+    else:
+        log = {"account": {}, "trades": [], "weekly_summary": []}
+
+    # Ensure structure is a dict with a trades list (guard against flat-list files)
+    if isinstance(log, list):
+        log = {"account": {}, "trades": log, "weekly_summary": []}
+
+    new_trade["timestamp"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log["trades"].append(new_trade)
+    log["trades"] = log["trades"][-50:]  # keep latest 50
+
+    with open(LOG_FILE, "w", encoding="utf-8") as f:
+        json.dump(log, f, indent=2, ensure_ascii=False)
+
+    print(f"✅ Đã ghi nhật ký lệnh {new_trade.get('pair', new_trade.get('trade_id', 'Unknown'))}")
+
+
 if __name__ == "__main__":
-    main()
+    # Handle --log-trade before delegating to main()
+    if len(sys.argv) >= 3 and sys.argv[1] == "--log-trade":
+        log_trade(sys.argv[2])
+    else:
+        main()

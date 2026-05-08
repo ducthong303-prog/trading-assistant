@@ -1,0 +1,91 @@
+{
+  "account": {
+    "currency": "USD",
+    "risk_per_trade_pct": 2,
+    "max_drawdown_pct": 10
+  },
+  "trades": [
+    {
+      "trade_id": "TS_20260507_01",
+      "id": 1,
+      "pair": "BTCUSD",
+      "direction": "LONG",
+      "status": "CLOSED",
+      "setup": null,
+      "confluence_score": null,
+      "psychology": null,
+      "entry": 80900,
+      "sl": 80575,
+      "tp1": 81397,
+      "tp2": 82515,
+      "exit": 80572,
+      "pnl_pts": -328,
+      "result": "LOSS",
+      "date_open": "2026-05-07",
+      "date_close": "2026-05-07",
+      "timeframe_entry": "5M",
+      "reason_smc": "CHoCH bullish 5M + BOS > 80,900 trên khung 5M. Giá vào vùng Zone A (80,044–80,900). Cấu trúc 4H bullish (BOS > 79,500). Xác nhận đủ 3 điều kiện Plan A.",
+      "note": "SL hit tại 80,572. Giá không giữ được vùng Zone A sau entry. Thiếu cảnh báo sớm do prompt cron không có ngưỡng buffer alert — đây là lỗi hệ thống cần fix."
+    },
+    {
+      "trade_id": "TS_20260507_02",
+      "id": 2,
+      "pair": "ETHUSD",
+      "direction": "LONG",
+      "status": "CLOSED",
+      "setup": null,
+      "confluence_score": null,
+      "psychology": null,
+      "entry": 2297,
+      "sl": 2272,
+      "tp1": 2399,
+      "tp2": null,
+      "exit": 2300,
+      "pnl_pts": 3,
+      "result": "WIN",
+      "date_open": "2026-05-07",
+      "date_close": "2026-05-07",
+      "timeframe_entry": "5M",
+      "reason_smc": "Giá vào entry zone 2,278–2,308. Liquidity sweep 2,294 trước đó. R:R 4.1:1.",
+      "note": "Đóng sớm theo khuyến nghị hệ thống tại 2,300 (+3 pts). Vào lệnh ngoài killzone (22:05). 4H CHoCH bearish chưa flip. MACD 1H histogram âm + CHoCH 1H bearish → 2/4 dấu hiệu đóng lệnh. Thoát đúng — bảo toàn vốn."
+    },
+    {
+      "trade_id": "TS_20260507_03",
+      "id": 3,
+      "pair": "BTCUSD",
+      "direction": "LONG",
+      "status": "CLOSED",
+      "setup": null,
+      "confluence_score": null,
+      "psychology": null,
+      "entry": 79796,
+      "sl": 79500,
+      "tp1": 81397,
+      "tp2": null,
+      "exit": 79939,
+      "pnl_pts": 143,
+      "result": "WIN",
+      "date_open": "2026-05-07",
+      "date_close": "2026-05-07",
+      "timeframe_entry": "5M",
+      "reason_smc": "Zone B (79,500–80,044). Giá test vùng hỗ trợ 4H BOS tại 79,500. R:R 5.4:1 (Risk 296 pts / Reward 1,601 pts).",
+      "note": "Đóng theo khuyến nghị hệ thống tại 79,939 (+143 pts). Entry ngoài killzone 22:29 GMT+7. 3/3 tín hiệu đóng: 1H CHoCH bearish 80,728 + MACD 5M histogram −20 + RSI bearish divergence 36.09. Thoát đúng — bảo toàn lãi thay vì chờ SL."
+    }
+  ],
+  "weekly_summary": [
+    {
+      "week": "2026-W19",
+      "trades_closed": 3,
+      "trades_open": 0,
+      "trades_win": 2,
+      "trades_loss": 1,
+      "win_rate_pct": 67,
+      "pnl_pts_closed": -182,
+      "lessons": [
+        "Prompt cron thiếu ngưỡng cảnh báo sớm (buffer alert) — khi giá vào vùng buffer không có Telegram, chỉ thấy khi SL đã bị xuyên.",
+        "Giá không giữ được Zone A (80,044–80,900) sau entry — cần xem lại 4H bias có thực sự bullish hay đã CHoCH bearish trước khi vào lệnh.",
+        "Cần thêm điều kiện Killzone vào checklist thực thi: chỉ entry trong London (14–17h) hoặc New York (19–22h GMT+7), tránh entry ngoài giờ."
+      ]
+    }
+  ]
+}
