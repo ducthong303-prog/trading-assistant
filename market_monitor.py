@@ -5,10 +5,14 @@ market_monitor.py  —  Smart Market Monitor (BTC/ETH)
 Gọi trade_engine.py để tính toàn bộ setup A+1/A+2/A1/A2/B1/B2 + confluence.
 Telegram chỉ fires khi: setup detected (score≥3 + KZ), zone change, hoặc hard alert.
 """
-import json, datetime, subprocess, sys, fcntl
+import json, datetime, subprocess, sys, fcntl, time
 from pathlib import Path
 
 LOG_FILE = Path(__file__).parent / "trade_log.json"
+TV_MCP_DIR    = Path(__file__).parent / "tradingview-mcp"
+TV_COLLECT_JS = TV_MCP_DIR / "tv_collect.js"  # chạy với cwd=TV_MCP_DIR
+TV_SNAPSHOT   = Path(__file__).parent / "tv_snapshot.json"
+TRADING_MODE  = Path(__file__).parent / "trading_mode.json"
 
 TOKEN   = "8613005077:AAGLTh9Zp8hv4yTIr6TXNYr7jBZvgAXz2dg"
 CHAT_ID = "7850734762"
@@ -220,6 +224,83 @@ _FVG_BUFFER = {
 _FOREX_BUFFER = 0.0002   # 2 pips cho tất cả Forex (EURUSD, GBPUSD, USDJPY...)
 _FOREX_PAIRS  = {"EUR", "GBP", "AUD", "NZD", "CAD", "CHF", "JPY"}
 
+# ── TV Auto-Scan (zero-token) ─────────────────────────────────────────────────
+
+def get_trading_mode():
+    """Đọc trading_mode.json. Trả về 'auto' hoặc 'monitor'."""
+    try:
+        d = json.loads(TRADING_MODE.read_text())
+        return d.get("mode", "monitor"), d.get("symbol", "BTCUSD")
+    except Exception:
+        return "monitor", "BTCUSD"
+
+
+def run_tv_collect(pair="BTCUSD", timeout=25):
+    """
+    Chạy tv_collect.js, pipe output vào tv_indicator_parser.py.
+    Cập nhật tv_snapshot.json. Trả về True nếu thành công.
+    """
+    if not TV_COLLECT_JS.exists() or not TV_MCP_DIR.exists():
+        print("[TV_SCAN] tv_collect.js not found — skip")
+        return False
+
+    # Kiểm tra snapshot còn fresh không (< 4 phút) — tránh collect liên tục
+    try:
+        snap_age = int(time.time()) - json.loads(TV_SNAPSHOT.read_text()).get("ts_unix", 0)
+        if snap_age < 240:
+            print(f"[TV_SCAN] Snapshot còn mới ({snap_age}s) — dùng cache, bỏ qua collect")
+            return True
+    except Exception:
+        pass
+
+    try:
+        # Node.js collect — một process, 6 parallel CDP calls
+        collect = subprocess.run(
+            ["node", str(TV_COLLECT_JS), pair],
+            capture_output=True, text=True,
+            timeout=timeout, cwd=str(TV_MCP_DIR)
+        )
+        if collect.returncode != 0 or not collect.stdout.strip():
+            print(f"[TV_SCAN] tv_collect.js failed (exit {collect.returncode}): "
+                  f"{collect.stderr[:200]}")
+            return False
+
+        raw = collect.stdout.strip()
+        data = json.loads(raw)
+        if "error" in data:
+            print(f"[TV_SCAN] CDP error: {data.get('message','')}")
+            return False
+
+        # Pipe vào parser → ghi tv_snapshot.json
+        parser = subprocess.run(
+            [sys.executable, str(Path(__file__).parent / "tv_indicator_parser.py")],
+            input=raw, capture_output=True, text=True, timeout=10
+        )
+        if parser.returncode != 0:
+            print(f"[TV_SCAN] parser error: {parser.stderr[:200]}")
+            return False
+
+        print(f"[TV_SCAN] snapshot updated — pair={pair}")
+        return True
+
+    except subprocess.TimeoutExpired:
+        print(f"[TV_SCAN] timeout after {timeout}s")
+        return False
+    except Exception as e:
+        print(f"[TV_SCAN] exception: {e}")
+        return False
+
+
+def get_tv_signal():
+    """Đọc snapshot hiện tại, chạy signal engine. Trả về signal dict hoặc None."""
+    try:
+        from tv_signal_engine import check_signal
+        return check_signal()
+    except Exception as e:
+        print(f"[TV_SCAN] signal engine error: {e}")
+        return None
+
+
 def get_dynamic_buffer(pair):
     """Return FVG retest buffer appropriate for the given pair/asset class."""
     p = pair.upper().replace("/", "")
@@ -290,7 +371,20 @@ def main():
         print(f"ERROR: market_state.json thiếu key {e} — bỏ qua chu kỳ")
         return
 
-    # 3. Hard alerts — luôn gửi bất kể KZ
+    # 3. TV Auto-Scan — chỉ khi mode=auto, zero token
+    tv_signal = None
+    trading_mode, tv_pair = get_trading_mode()
+    if trading_mode == "auto":
+        tv_ok = run_tv_collect(tv_pair)
+        if tv_ok:
+            tv_signal = get_tv_signal()
+            if tv_signal:
+                print(f"[TV_SCAN] SIGNAL: {tv_signal['symbol']} {tv_signal['direction']} "
+                      f"setup={tv_signal['setup']} score={tv_signal['effective_score']}/7")
+            else:
+                print("[TV_SCAN] Không có signal actionable")
+
+    # 4. Hard alerts — luôn gửi bất kể KZ
     hard_alerts = []
     if btc_p < BTC_SL:       hard_alerts.append("🔴 BTC PHÁ SL 79,500!")
     if eth_p < ETH_SL:       hard_alerts.append("🔴 ETH PHÁ SL 2,278!")
@@ -336,7 +430,8 @@ def main():
     # Có lệnh đang mở → luôn gửi cập nhật 5 phút
     urgent_open = any(u.get("be_due") or u.get("sl_danger") for u in open_updates)
     should_send = bool(hard_alerts or zone_changes or setup_active
-                       or open_updates or auto_closed or fvg_retest_alert)
+                       or open_updates or auto_closed or fvg_retest_alert
+                       or tv_signal)
 
     if not should_send:
         print(f"SILENT: {now_gmt7.strftime('%H:%M')} "
@@ -425,6 +520,13 @@ def main():
             if any(ln.startswith(k) for k in ("Entry:", "SL:", "TP:", "Size:")):
                 lines.append(f"  {ln}")
 
+    # TV Auto-Signal (zero-token)
+    if tv_signal:
+        lines += ["", "─" * 30, tv_signal["telegram_text"]]
+        # TV signal có âm thanh riêng — không bị override bởi silent
+        if tv_signal.get("reversal_warning"):
+            lines.append("⚠️ <b>Kiểm tra lệnh đang mở!</b>")
+
     # Zone changes
     if zone_changes:
         lines += ["", "📍 <b>Zone Change</b>"] + zone_changes
@@ -475,8 +577,10 @@ def main():
                          f"Exit: {trade['exit']:,.2f}  ({trade['pnl_pts']:+.0f} pts)")
             lines.append(f"  📝 {lesson}")
 
-    # Hard alert / auto-close / FVG retest / BE due / SL danger → âm thanh; còn lại → silent
-    send("\n".join(lines), silent=not bool(hard_alerts or auto_closed or fvg_retest_alert or urgent_open))
+    # Hard alert / TV signal / auto-close / FVG retest / BE due / SL danger → âm thanh; còn lại → silent
+    send("\n".join(lines), silent=not bool(
+        hard_alerts or tv_signal or auto_closed or fvg_retest_alert or urgent_open
+    ))
     print(f"SENT: {now_gmt7.strftime('%H:%M')} "
           f"Setup={setup or '—'} Score={score} {verdict}")
 
