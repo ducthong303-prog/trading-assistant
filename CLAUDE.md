@@ -1,5 +1,14 @@
 # CLAUDE.md
 
+# HÀNH ĐỘNG TỰ ĐỘNG
+
+* **Khi user nhắn "đã đóng lệnh", "thoát lệnh", "close lệnh", "đóng tại", "thoát tại"** (kèm giá hoặc không) → **ngay lập tức chạy quy trình `/close`** không hỏi thêm. Tự tìm lệnh OPEN trong `trade_log.json`, tính P&L, phân tích, cập nhật weekly.
+* **Khi user nhắn theo cú pháp `PAIR | DIRECTION | Entry: X | SL: X | TP1: X`** → **ngay lập tức chạy quy trình `/open`** để log lệnh mới.
+* **Khi user nhắn "bắt đầu auto trading", "chế độ tự động", "auto trade [PAIR]", "tự động trading [PAIR]"** → **ngay lập tức chạy quy trình `/auto-trade`**: mở TradingView MCP, đọc D1→H4→H1→M5, tính Confluence Score, nếu score ≥ 4 + trigger → tự động log lệnh. Nếu score 3 → đề xuất chờ xác nhận. Nếu ≤ 2 → "Thị trường chưa sẵn sàng."
+* **Khi user nhắn "dừng auto trading", "quay lại chế độ theo dõi", "về monitor mode", "tắt auto"** → **ngay lập tức chạy quy trình `/monitor-mode`**: ghi trạng thái, xác nhận chuyển về cron-based monitoring.
+
+---
+
 # NGÔN NGỮ & PHONG CÁCH
 
 * Giao tiếp bằng **tiếng Việt**, giữ thuật ngữ kỹ thuật bằng tiếng Anh.
@@ -69,6 +78,84 @@ Sweep hợp lệ: wick vượt EQH/EQL/PDH/PDL + close quay lại range + displa
 **Bước 5 — SMT Divergence (nếu có):**
 BTC/ETH phân kỳ (một asset tạo HH/LL mới, cái kia không theo) → chọn asset có volume ủng hộ mạnh hơn. Dùng làm confirmation, không phải trigger độc lập.
 
+## 2.5 TV INDICATOR INTEGRATION (khi có TradingView MCP)
+
+Trong phiên Auto-Trade, đọc thêm từ 6 chỉ báo sẵn có trên chart. Kết quả từ `tv_indicator_parser.py` bổ sung tối đa **+2 điểm Confluence** vào score §2.
+
+### Mapping chỉ báo → Confluence Steps
+
+| Chỉ báo | Data type | Tích hợp vào bước |
+|---------|----------|------------------|
+| Smart Money Concepts [LuxAlgo] | labels (BOS/CHoCH/EQH/EQL) | Bước 1 (HTF Bias) + Bước 4 (Sweep) |
+| HTF Power of Three° | labels (4 price levels) | Bước 1 (HTF Bias) — PO3 phase |
+| Volume Profile | lines (200 levels) | Bước 3 (Volume) — POC/HVN |
+| Liquidity Swings [LuxAlgo] | labels (sweep counts) | Bước 4 (Sweep) — key levels + strength |
+| RSI Divergence Indicator | study values | Bước 5 (DXY/SMT) — momentum divergence |
+| CM_MacD_Ult_MTF | study values | Bước 5 (DXY/SMT) — multi-TF momentum |
+
+### Quy tắc đọc từng chỉ báo
+
+**Smart Money Concepts [LuxAlgo]:**
+- 8 label gần nhất (BOS/CHoCH/EQH/EQL) → xác định structure direction
+- CHoCH **trên** giá hiện tại → bearish structure (price fell from there)
+- CHoCH **dưới** giá hiện tại → bullish structure (price rose from there)
+- EQH/EQL trong vùng ±1.5% giá → active liquidity targets → ưu tiên làm sweep check
+- BOS above/below price → nearest resistance/support levels
+
+**HTF Power of Three°:**
+- 4 price labels = range [low, low-mid, high-mid, high]
+- Price ≤ 25% range từ đáy = **accumulation_zone** → Long bias (+1 nếu LONG setup)
+- Price ≥ 75% range từ đỉnh = **distribution_zone** → Short bias (+1 nếu SHORT setup)
+- Price ở giữa = **manipulation phase** → chờ, không trade trong phase này
+
+**Volume Profile:**
+- POC = midpoint của VP range (midpoint 200 levels)
+- Price dưới POC = discount → Long preferred
+- Price trên POC = premium → Short preferred
+- **TP target = VP range extremes (HVN)** — luôn dùng làm TP1/TP2
+
+**Liquidity Swings [LuxAlgo]:**
+- Label text = số lần level bị swept (strength indicator)
+- Levels có count cao (≥ 50) = rất significant → cần sweep để tiếp tục trend
+- `nearest_resistance/support` từ parser = S/R chính xác hơn Asia H/L
+
+**RSI Divergence Indicator:**
+- RSI < 35 tại POI = **oversold** → +1 Confluence (thay thế bước Volume nếu volume = 0)
+- RSI > 65 tại POI = **overbought** → +1 Confluence
+- Regular/Hidden Bearish → momentum divergence warning → kiểm tra reversal
+- Regular/Hidden Bullish → momentum divergence → potential bounce
+
+**CM_MacD_Ult_MTF:**
+- Histogram dương = bullish momentum. Âm = bearish.
+- **Histogram đảo chiều** (neg→pos hoặc ngược lại) = momentum shift → xem xét setup
+- MACD cross below zero (bearish→bullish) = early long signal — kết hợp với SMC CHoCH xác nhận
+
+### Reversal Warning — 3 điều kiện đồng thời
+
+Khi TẤT CẢ xảy ra → **phát cảnh báo ngay, không cần user hỏi:**
+
+1. SMC CHoCH tại giá ≤ 0.5% từ current price
+2. RSI Divergence (Regular/Hidden Bull hoặc Bear)
+3. MACD Histogram đảo chiều
+
+→ Phản hồi: **"⚠️ CẢNH BÁO ĐỔI CHIỀU [LONG/SHORT]: [lý do]. Đề xuất: [hành động]"**
+→ Nếu có lệnh OPEN ngược chiều → đề xuất đóng 50% hoặc dời SL về BE ngay.
+
+### TV Confluence Bonus Rules
+
+| Điều kiện | Điểm bonus |
+|-----------|-----------|
+| RSI oversold (<35) hoặc overbought (>65) tại POI | +1 |
+| MACD histogram direction khớp trade direction | +1 |
+| PO3 phase: accumulation_zone (LONG) / distribution_zone (SHORT) | +1 |
+| SMC structure (CHoCH/BOS) khớp trade direction | +1 |
+
+**Tối đa +2 điểm bonus cộng vào score §2 (score gốc tối đa 5, sau bonus tối đa 7).**
+Ngưỡng hành động: score gốc ≤ 2 → vẫn từ chối bất kể bonus.
+Score gốc 3 + bonus ≥ 1 → coi như actionable (4).
+
+---
+
 ## 3. ENTRY TRIGGER
 
 Sau khi pass đủ bước 2–4 (bước 5 nếu applicable), dùng một trong hai trigger:
@@ -98,6 +185,18 @@ Tín hiệu quét thanh khoản thành công ngay cả khi chưa có Engulfing:
 * **50% Rule:** Nếu nến Engulfing quá dài → đặt Limit tại mức 50% thân nến để tối ưu SL và tăng R:R.
 * **SL Protection:** SL đặt dưới/trên vùng Liquidity Sweep gần nhất + buffer 1–2 pip. Không đặt sát mức giá tròn.
 
+### 3C — The Sniper FVG Rejection
+Trigger độ chính xác cao nhất — dùng khi giá đang retest trực tiếp vào vùng FVG M5:
+
+**Điều kiện bắt buộc (cả 3):**
+* Giá retest vào trong vùng FVG M5 chưa lấp (`bottom ≤ price ≤ top`).
+* Trên M1: xuất hiện **Wick Rejection** (wick ≥ 50% chiều dài nến) hoặc **Engulfing** ngược chiều FVG.
+* Volume M1 tại nến rejection > SMA(20) × 1.2.
+
+**Entry:** Sau khi nến M1 rejection **close** — không đợi M5 close.
+**SL:** Phía sau đầu wick M1 + buffer 1–2 pip (chặt hơn 3A/3B).
+**Ý nghĩa:** FVG M5 là vùng imbalance SM chưa fill — khi giá quay lại và M1 rejection xác nhận, đây là điểm SM hấp thụ chính xác nhất. Kết hợp 3C với setup nhóm A/A+ để entry RR cao nhất.
+
 ## 4. SETUPS — MA TRẬN PHÂN LOẠI
 
 ### NHÓM A+ — High Conviction (Xác suất >80%)
@@ -106,6 +205,7 @@ Tín hiệu quét thanh khoản thành công ngay cả khi chưa có Engulfing:
 |-------|----------|-----------|--------|------|
 | A+1 — Unicorn | ✅ London/NY | H4/H1 Trending + Breaker Block ∩ FVG + đủ 5 bước Confluence | 3:1 | tối đa 2% |
 | A+2 — Power of 3 | ✅ London | Asia tích lũy rõ → London sweep SL (Manipulation) → Entry sau cú quét | 2:1 | tối đa 1% |
+| A+3 — SMT Reversal | ✅ London/NY | H4/D1 POI + BTC/ETH hoặc XAU/XAG phân kỳ mạnh (SMT) + MSB xác nhận ngược chiều | 2.5:1 | tối đa 1.5% |
 
 ### NHÓM A — Standard SMC (Xác suất 60–70%)
 
@@ -118,18 +218,26 @@ Tín hiệu quét thanh khoản thành công ngay cả khi chưa có Engulfing:
 
 | Setup | Killzone | Điều kiện | RR min | Size |
 |-------|----------|-----------|--------|------|
-| B1 — Silver Bullet | ✅ NY 21–22h | Sweep internal liquidity + FVG M5 mới trong đúng 21–22h GMT+7 | 1.5–2:1 | 0.5–1% |
+| B1 — Silver Bullet | ✅ London 14–15h / NY 21–22h | Sweep internal liquidity + FVG M5 trong cửa sổ Silver Bullet (London open hoặc NY AM) | 1.5–2:1 | 0.5–1% |
 | B2 — FTR | ⚪ linh hoạt | BOS → Base (3+ nến nhỏ, vol thấp) → Breakout vol tăng → Retest Base | 1.5:1 | tối đa 0.5% |
 
-Chỉ A+1 (Unicorn) được size tối đa 2%. A+2 tối đa 1%. Nhóm A: 0.5–1%. Nhóm B: tối đa 0.5–1%. TP: Nhóm A+ → HVN hoặc RR min, trail SL khi accelerate. Nhóm A → HVN hoặc RR min. Nhóm B → không hold lâu, đóng tại TP1 hoặc 1.5:1.
+### NHÓM C — Cấu trúc Đặc biệt (Xác suất 55–65%)
+
+| Setup | Killzone | Điều kiện | RR min | Size |
+|-------|----------|-----------|--------|------|
+| C1 — Breaker Block | ✅ London/NY | OB mạnh bị phá vỡ với volume displacement → Retest vùng OB từ phía đối diện + rejection xác nhận | 1.5:1 | tối đa 0.5% |
+
+Chỉ A+1 (Unicorn) được size tối đa 2%. A+3 tối đa 1.5%. A+2 tối đa 1%. Nhóm A: 0.5–1%. Nhóm B/C: tối đa 0.5–1%. TP: Nhóm A+ → HVN hoặc RR min, trail SL khi accelerate. Nhóm A → HVN hoặc RR min. Nhóm B/C → không hold lâu, đóng tại TP1 hoặc 1.5:1.
 
 **Chi tiết biến thể:**
 * **A+1 — Unicorn:** Breaker Block = OB đã bị BOS phá qua → price quay lại retest vùng này. Tìm Breaker Block trùng FVG trên H4/H1 trong trend rõ. Bắt buộc đủ 5 bước Confluence + SMT Divergence xác nhận (XAU/DXY hoặc BTC/ETH). Trigger M5: Engulfing hoặc Wick Rejection sau close. Setup hiếm nhất — chỉ vào khi hội tụ đủ điều kiện.
 * **A+2 — Power of 3:** 3 pha: (1) Phiên Á tích lũy hẹp (ATR thấp, không BOS). (2) Đầu London: sweep qua SL vùng tích lũy — pha Manipulation. (3) Displacement ngược chiều mạnh tạo FVG. Entry tại FVG retest hoặc Engulfing sau cú quét. Không entry trong pha (1) hoặc đầu pha (2). TP: đỉnh/đáy đối diện phiên Á → HVN tiếp theo.
+* **A+3 — SMT Reversal:** Phân kỳ mạnh giữa BTC/ETH hoặc XAU/XAG tại H4/D1 POI (OB/FVG lớn). Asset A tạo HH/LL mới nhưng Asset B không theo → Market Structure Break (MSB) xác nhận ngược chiều + volume spike. Chọn asset có SMT yếu (phe phân kỳ thất bại) làm entry. SL phía sau đỉnh/đáy của bar MSB. TP: HVN tiếp theo hoặc 2.5:1. Mạnh hơn A2 vì bắt buộc có MSB rõ ràng — không chỉ divergence.
 * **A1 — Judas Swing:** Phiên Á consolidate hẹp. Đầu London sweep Asia High/Low với Wick Rejection + Displacement tạo FVG mới. Chờ pullback retest FVG → Engulfing/Pinbar xác nhận → entry. TP tại đỉnh/đáy đối diện Asia range. SL phía sau wick sweep + buffer.
 * **A2 — Symmetry SMT:** XAU tạo LL mới nhưng DXY không tạo HH mới (hoặc ngược lại), hoặc BTC/ETH phân kỳ — tại H1 POI rõ (OB/FVG). Rejection candle (Engulfing hoặc Hammer) + volume > SMA(20)×1.5. Chọn asset có volume ủng hộ mạnh hơn. Dùng làm trigger entry, không chỉ là confirmation.
-* **B1 — Silver Bullet:** Chỉ trong đúng 21:00–22:00 GMT+7. Price sweep PDH/PDL hoặc EQH/EQL → tạo FVG mới trên M5 → Limit tại FVG vừa hình thành. TP tại liquidity zone gần nhất. SL phía sau wick sweep. Không có FVG trong giờ này → không trade.
+* **B1 — Silver Bullet:** Hai cửa sổ ICT: (1) London Open 14–15h GMT+7. (2) NY AM 21–22h GMT+7. Price sweep PDH/PDL hoặc EQH/EQL → tạo FVG mới trên M5 → Limit tại FVG vừa hình thành. TP tại liquidity zone gần nhất. SL phía sau wick sweep. Không có FVG trong cửa sổ SB → không trade.
 * **B2 — FTR (Failure To Return):** Sau BOS mạnh → giá consolidate thành Base (3+ nến thân nhỏ, volume thấp = No Supply/No Demand) → Breakout Base có volume tăng → Retest đỉnh/đáy Base. Entry tại retest + xác nhận. SL dưới đáy Base.
+* **C1 — Breaker Block:** Sau khi một OB mạnh (high-volume candle) bị phá vỡ với displacement rõ → OB đó trở thành Breaker Block. Chờ giá pullback về retest vùng Breaker Block (top/bottom của OB cũ) với volume giảm dần (No Supply/No Demand). Entry khi rejection xác nhận khỏi Breaker Block + volume tăng trở lại. SL phía sau đầu wick rejection. TP tại HVN tiếp theo hoặc 1.5:1. Thường hình thành trên H1 — xác nhận bằng M5 trigger.
 
 ## 5. RISK & EXIT
 
@@ -159,14 +267,14 @@ Chỉ A+1 (Unicorn) được size tối đa 2%. A+2 tối đa 1%. Nhóm A: 0.5�
 
 ## 6. KHÔNG TRADE KHI
 
-Volume < SMA(20)×1.5 | FVG yếu (volume thấp, không trùng POI) | HTF sideway | trước news mạnh | RR không đạt | FOMO sau displacement | spread/volatility bất thường | 2 thua liên tiếp (chưa post-mortem) | POC mà giá đang tích lũy (không có pattern + volume xác nhận breakout) | **Ngoài KZ** (không có ngoại lệ, trừ B2 FTR).
+Volume < SMA(20)×1.5 | FVG yếu (volume thấp, không trùng POI) | **FVG đã bị lấp (filled) → không dùng làm entry** | HTF sideway | trước news mạnh | RR không đạt | FOMO sau displacement | spread/volatility bất thường | 2 thua liên tiếp (chưa post-mortem) | POC mà giá đang tích lũy (không có pattern + volume xác nhận breakout) | **Ngoài KZ** (không có ngoại lệ, trừ B2 FTR).
 
 ## 7. SIGNAL OUTPUT FORMAT (Quy tắc phản hồi bắt buộc)
 
 Mọi khi phân tích hoặc phát hiện tín hiệu, **BẮT BUỘC** trình bày theo cấu trúc sau — không được bỏ qua hoặc rút gọn:
 
 ```
-Phân loại:  [A+1 Unicorn / A+2 PO3 / A1 Judas / A2 SMT / B1 Silver Bullet / B2 FTR]
+Phân loại:  [A+1 Unicorn / A+2 PO3 / A+3 SMT-Rev / A1 Judas / A2 SMT / B1 Silver Bullet / B2 FTR / C1 Breaker]
 Trạng thái: [Reversal / Continuation / Sideway]
 
 Confluence Score: x/5
