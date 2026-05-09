@@ -256,7 +256,7 @@ def run_tv_collect(pair="BTCUSD", timeout=25):
     try:
         # Node.js collect — một process, 6 parallel CDP calls
         collect = subprocess.run(
-            ["node", str(TV_COLLECT_JS), pair],
+            ["/usr/local/bin/node", str(TV_COLLECT_JS), pair],
             capture_output=True, text=True,
             timeout=timeout, cwd=str(TV_MCP_DIR)
         )
@@ -583,6 +583,21 @@ def main():
     ))
     print(f"SENT: {now_gmt7.strftime('%H:%M')} "
           f"Setup={setup or '—'} Score={score} {verdict}")
+
+    # Claude Deep Analysis — chạy sau khi đã gửi zero-token signal
+    # Chỉ trigger khi signal đủ mạnh (effective_score >= 4) và không bị lock
+    if tv_signal and tv_signal.get("effective_score", 0) >= 4:
+        try:
+            subprocess.Popen(
+                ["python3", str(Path(__file__).parent / "tv_claude_analyzer.py"),
+                 json.dumps(tv_signal)],
+                cwd=str(Path(__file__).parent),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            print("[claude_analyzer] triggered in background"        )
+        except Exception as _e:
+            print(f"[claude_analyzer] could not start: {_e}")
 
 
 if __name__ == "__main__":
