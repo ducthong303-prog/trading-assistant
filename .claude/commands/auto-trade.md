@@ -30,35 +30,74 @@ print('✅ Mode: AUTO')
 
 _(thay `BTCUSD_PAIR` bằng pair thực tế)_
 
-3. Chạy `mcp__tradingview__tv_health_check`:
-   - Nếu OK → tiếp tục bước 4
-   - Nếu FAIL → chạy launch script:
-     ```bash
-     bash /Users/ttcenter/launch_tradingview.sh
-     ```
-     Script tự mở Chromium + TradingView với CDP port 9222. Đợi output "✅ CDP sẵn sàng!" rồi `tv_health_check` lại.
-   - Nếu vẫn FAIL → báo user kiểm tra log: `cat /tmp/tv_chromium.log`
+3. **Kiểm tra TradingView bằng curl** (không dùng MCP):
 
-4. `mcp__tradingview__chart_set_symbol(symbol)` → điều hướng đến pair.
+```bash
+TV_STATUS=$(curl -s --max-time 2 http://localhost:9222/json 2>/dev/null | python3 -c "
+import json, sys
+try:
+    tabs = json.load(sys.stdin)
+    tv = [t for t in tabs if 'tradingview' in t.get('url','')]
+    print('OK' if tv else 'NO_CHART')
+except:
+    print('DOWN')
+")
+echo "TV_STATUS=$TV_STATUS"
+```
+
+- `OK` → tiếp tục Bước 1.5
+- `NO_CHART` hoặc `DOWN` → `bash /Users/ttcenter/launch_tradingview.sh` → đợi "✅ CDP sẵn sàng!"
+- Vẫn FAIL → báo user: `cat /tmp/tv_chromium.log`
 
 ---
 
-## Bước 1.5 — Đọc Chỉ Báo TradingView
+## Bước 1.5 — Kiểm tra Snapshot Cache
 
-Gọi **song song** (không cần đợi nhau):
+```bash
+python3 -c "
+import json, time, sys
+try:
+    d = json.load(open('/Users/ttcenter/tv_snapshot.json'))
+    age = int(time.time()) - d.get('ts_unix', 0)
+    sym = d.get('symbol', 'BTCUSD')
+    print(f'AGE={age} SYM={sym}')
+except:
+    print('AGE=9999 SYM=NONE')
+"
+```
+
+**Nếu AGE < 180 và SYM khớp PAIR:**
+→ **SKIP Bước 2, 3, 4** — nhảy thẳng đến Bước 5.
+→ `mcp__tradingview__chart_set_symbol(PAIR)` nếu symbol chưa đúng.
+→ Thông báo: `"Dùng snapshot cache ({AGE}s cũ) — bỏ qua data collect."`
+
+**Nếu AGE ≥ 180 hoặc SYM khác:** → Tiếp tục Bước 2.
+
+---
+
+## Bước 2 — Kết nối & M5 Snapshot (chỉ khi snapshot stale)
 
 ```
-data_get_study_values                                          → RSI + MACD values
-data_get_pine_labels(study_filter="Smart Money", max_labels=10) → BOS/CHoCH/EQH/EQL
-data_get_pine_labels(study_filter="HTF Power")                 → PO3 key levels (4 labels)
-data_get_pine_lines(study_filter="Volume Profile")             → VP levels → POC estimate
-data_get_pine_labels(study_filter="Liquidity", max_labels=20)  → swing levels + strength
+mcp__tradingview__chart_set_symbol(PAIR)
+mcp__tradingview__chart_set_timeframe("5")
 ```
 
-Sau khi có data, pipe vào parser để lấy structured snapshot:
+Gọi **song song** (6 calls):
+
+```
+data_get_ohlcv(count=50)
+data_get_study_values
+data_get_pine_labels(study_filter="Smart Money", max_labels=10)
+data_get_pine_labels(study_filter="HTF Power", max_labels=4)
+data_get_pine_lines(study_filter="Volume Profile")
+data_get_pine_labels(study_filter="Liquidity", max_labels=20)
+```
+
+Pipe vào parser:
 
 ```bash
 echo '{
+  "symbol": "PAIR",
   "price": CURRENT_PRICE,
   "study_values": STUDY_VALUES_JSON,
   "smc_labels":   SMC_LABELS_JSON,
@@ -68,59 +107,26 @@ echo '{
 }' | python3 /Users/ttcenter/tv_indicator_parser.py
 ```
 
-Đọc output và ghi nhớ:
-- **TV Bias**: BULLISH / BEARISH / MIXED
-- **Reversal Warning**: có không? Direction?
-- **TV Bonus**: +0/+1/+2 điểm Confluence bổ sung
-- **Key levels**: EQH/EQL gần giá + resistance/support từ Liquidity Swings
-- **PO3 Phase**: accumulation / manipulation / distribution zone
-- **VP POC**: giá đang trên hay dưới POC?
+Ghi nhớ từ output: **TV Bias**, **Reversal Warning**, **TV Bonus**, **Key levels**, **PO3 Phase**, **VP POC**.
 
-> Nếu output có `⚠️ CẢNH BÁO ĐỔI CHIỀU` → **báo ngay cho user** + kiểm tra lệnh OPEN đang có.
+> Nếu output có `⚠️ CẢNH BÁO ĐỔI CHIỀU` → **báo ngay cho user** + kiểm tra lệnh OPEN.
 
 ---
 
-## Bước 2 — HTF Bias (D1)
+## Bước 3 — H1 Structure (chỉ khi snapshot stale)
 
 ```
-chart_set_timeframe("D")
-data_get_ohlcv(count=20, summary=true)
+mcp__tradingview__chart_set_timeframe("60")
+data_get_ohlcv(count=30, summary=true)
 ```
 
-Phân tích:
-- Xu hướng: Trending up (HH/HL liên tiếp)? Trending down (LL/LH)? Sideway?
-- BOS gần nhất: phá đỉnh hay phá đáy?
-- Giai đoạn: Accumulation / Distribution / Mark-up / Mark-down?
+Phân tích: CHoCH/BOS H1 rõ không? FVG H1 tồn tại không? → `htf_h1 = BULLISH | BEARISH | SIDEWAYS`
 
-→ Kết luận `htf_d1 = BULLISH | BEARISH | SIDEWAYS`
+**Lưu ý:** Không cần D1/H4 OHLCV riêng — SMC labels và PO3 từ snapshot đã encode HTF bias đầy đủ.
 
 ---
 
-## Bước 3 — H4 Structure
-
-```
-chart_set_timeframe("240")
-data_get_ohlcv(count=30)
-data_get_study_values
-```
-
-Phân tích:
-- CHoCH / BOS H4 rõ không?
-- Giá đang retest OB/FVG H4 không?
-- H4 cùng hướng D1? → **HTF score +1** nếu D1 và H4 cùng bias
-
-→ Kết luận `htf_h4 = BULLISH | BEARISH | SIDEWAYS`
-→ Chấm: `htf_score = 1` nếu D1 + H4 cùng hướng, `0` nếu không
-
----
-
-## Bước 4 — H1 Confluence §2
-
-```
-chart_set_timeframe("60")
-data_get_ohlcv(count=30)
-data_get_study_values
-```
+## Bước 4 — H1 Confluence §2 (chỉ khi snapshot stale)
 
 Chấm §2 Confluence (5 bước gốc + TV bonus):
 
@@ -154,10 +160,9 @@ Chấm §2 Confluence (5 bước gốc + TV bonus):
 ## Bước 5 — M5 Entry Trigger
 
 ```
-chart_set_timeframe("5")
+mcp__tradingview__chart_set_timeframe("5")
 data_get_ohlcv(count=50)
-data_get_study_values
-capture_screenshot("chart")
+mcp__tradingview__capture_screenshot("chart")
 ```
 
 Xác định:

@@ -1,6 +1,6 @@
 # /tv-analyze — Phân Tích Thị Trường Đầy Đủ Qua TradingView
 
-Đọc toàn bộ chart D1→H4→H1→M5 + 6 chỉ báo TradingView, tính Confluence Score §2 (+ TV bonus),
+Đọc chart M5 + H1 + 6 chỉ báo TradingView, tính Confluence Score §2 (+ TV bonus),
 xuất §7 Signal Output. **Không log lệnh** — analysis-only.
 
 ---
@@ -12,34 +12,82 @@ xuất §7 Signal Output. **Không log lệnh** — analysis-only.
 ```
 
 - `PAIR` mặc định: `BTCUSD` nếu không chỉ định
-- Ví dụ: `/tv-analyze ETHUSD`, `/tv-analyze XAUUSD`
 
 ---
 
-## Bước 0 — Khởi động & kiểm tra
+## Bước 0 — Kết nối nhanh (không dùng MCP)
 
 1. Parse PAIR từ message (mặc định `BTCUSD`).
-2. `mcp__tradingview__tv_health_check` — nếu FAIL → `bash /Users/ttcenter/launch_tradingview.sh`
-3. `mcp__tradingview__chart_set_symbol(PAIR)` → điều hướng đến pair.
-4. `mcp__tradingview__chart_get_state` → xác nhận symbol + liệt kê indicators đang active.
+2. Kiểm tra TradingView bằng curl:
+
+```bash
+TV_STATUS=$(curl -s --max-time 2 http://localhost:9222/json 2>/dev/null | python3 -c "
+import json, sys
+try:
+    tabs = json.load(sys.stdin)
+    tv = [t for t in tabs if 'tradingview' in t.get('url','')]
+    print('OK' if tv else 'NO_CHART')
+except:
+    print('DOWN')
+")
+echo "TV_STATUS=$TV_STATUS"
+```
+
+- `OK` → tiếp tục Bước 0.5 (không cần gọi `tv_health_check`)
+- `NO_CHART` hoặc `DOWN` → `bash /Users/ttcenter/launch_tradingview.sh` → đợi "✅ CDP sẵn sàng!" → tiếp tục
+
+3. Nếu `TV_STATUS=OK`: **KHÔNG** gọi `chart_set_symbol` trước — đọc snapshot trước (Bước 0.5).
 
 ---
 
-## Bước 1 — M5 Snapshot (gọi song song)
+## Bước 0.5 — Kiểm tra Snapshot Cache
+
+```bash
+python3 -c "
+import json, time, sys
+try:
+    d = json.load(open('/Users/ttcenter/tv_snapshot.json'))
+    age = int(time.time()) - d.get('ts_unix', 0)
+    sym = d.get('symbol', 'BTCUSD')
+    print(f'AGE={age} SYM={sym}')
+except:
+    print('AGE=9999 SYM=NONE')
+"
+```
+
+**Nếu AGE < 180 và SYM khớp PAIR:**
+→ **SKIP Bước 1 và 2** — dùng snapshot đã có, nhảy thẳng đến Bước 3.
+→ Thông báo: `"Dùng snapshot cache ({AGE}s cũ) — bỏ qua collect data."`
+
+**Nếu AGE ≥ 180 hoặc SYM khác:**
+→ Tiếp tục Bước 1.
+
+---
+
+## Bước 1 — M5 Snapshot (chỉ chạy khi snapshot stale)
+
+Điều hướng chart:
+```
+mcp__tradingview__chart_set_symbol(PAIR)
+mcp__tradingview__chart_set_timeframe("5")
+```
+
+Gọi **song song** (6 calls cùng lúc):
 
 ```
 data_get_ohlcv(count=50)                                           → M5 bars
 data_get_study_values                                              → RSI + MACD values
 data_get_pine_labels(study_filter="Smart Money", max_labels=10)    → BOS/CHoCH/EQH/EQL
 data_get_pine_labels(study_filter="HTF Power", max_labels=4)       → PO3 key levels
-data_get_pine_lines(study_filter="Volume Profile")                 → VP levels → POC estimate
+data_get_pine_lines(study_filter="Volume Profile")                 → VP levels → POC
 data_get_pine_labels(study_filter="Liquidity", max_labels=20)      → swing levels + strength
 ```
 
-Pipe tất cả vào parser để lấy TV snapshot:
+Pipe vào parser (ghi snapshot mới):
 
 ```bash
 echo '{
+  "symbol": "PAIR",
   "price": CURRENT_PRICE,
   "study_values": STUDY_VALUES_JSON,
   "smc_labels":   SMC_LABELS_JSON,
@@ -49,120 +97,84 @@ echo '{
 }' | python3 /Users/ttcenter/tv_indicator_parser.py
 ```
 
-Ghi nhớ từ output:
-- **TV Bias**: BULLISH / BEARISH / MIXED
-- **Reversal Warning**: có không? Direction? (nếu có → **báo ngay**)
-- **TV Bonus**: +0/+1/+2
-- **Key levels**: EQH/EQL, nearest S/R, PO3 low/high, VP POC/HVN
-
 ---
 
-## Bước 2 — HTF Bias D1
+## Bước 2 — H1 Structure (chỉ chạy khi snapshot stale)
 
 ```
-chart_set_timeframe("D")
-data_get_ohlcv(count=20, summary=true)
-```
-
-Phân tích:
-- Trend (HH/HL liên tiếp hay LL/LH)?
-- BOS gần nhất phá đỉnh hay đáy?
-- Pha: Accumulation / Distribution / Mark-up / Mark-down?
-
-→ `htf_d1 = BULLISH | BEARISH | SIDEWAYS`
-
----
-
-## Bước 3 — H4 Structure
-
-```
-chart_set_timeframe("240")
+mcp__tradingview__chart_set_timeframe("60")
 data_get_ohlcv(count=30, summary=true)
 ```
 
-Phân tích:
-- CHoCH / BOS H4 rõ không?
-- Giá đang retest OB/FVG H4 không?
-- Cùng hướng D1? → `htf_score = 1` nếu đồng thuận, `0` nếu xung đột
+**Lưu ý:** Không cần D1/H4 OHLCV riêng — TV indicators (SMC, PO3) đã encode HTF bias.
+Đọc H1 để: phát hiện CHoCH/BOS H1, tìm FVG H1, xác nhận trend direction.
 
-→ `htf_h4 = BULLISH | BEARISH | SIDEWAYS`
+→ `htf_bias = BULLISH | BEARISH | SIDEWAYS` (từ H1 structure + SMC labels snapshot)
 
 ---
 
-## Bước 4 — H1 Confluence Score §2
+## Bước 3 — Confluence Score §2
 
-```
-chart_set_timeframe("60")
-data_get_ohlcv(count=30)
-```
-
-Chấm §2 (5 bước gốc):
+Dùng data từ snapshot (Bước 1) + H1 context (Bước 2, nếu chạy):
 
 | Bước | Điều kiện | Điểm |
 |------|-----------|------|
-| 1 — HTF Bias | D1+H4 cùng hướng | 0/1 |
+| 1 — HTF Bias | SMC labels (D1/H4 embedded) + H1 cùng hướng | 0/1 |
 | 2 — Killzone | Giờ VN: 14–17h (London) hoặc 19–22h (NY) | 0/1 |
 | 3 — Volume | Vol H1 nến BOS/CHoCH > SMA(20) | 0/1 |
-| 4 — Liquidity Sweep | Asia H/L hoặc PDH/PDL bị quét + displacement | 0/1 |
-| 5 — DXY/SMT | DXY Supply/Demand hoặc RSI divergence + MACD MTF | 0/1 |
+| 4 — Liquidity Sweep | EQH/EQL hoặc PDH/PDL bị quét (từ SMC labels) | 0/1 |
+| 5 — DXY/SMT | RSI divergence + MACD direction từ snapshot | 0/1 |
 
-**TV Bonus** (từ Bước 1):
+**TV Bonus** (từ snapshot, tối đa +2):
 
 | Điều kiện | Bonus |
 |-----------|-------|
-| RSI < 35 hoặc > 65 tại POI | +1 |
+| RSI < 35 (oversold) hoặc > 65 (overbought) tại POI | +1 |
 | MACD histogram khớp hướng trade | +1 |
-| PO3 phase: accumulation (LONG) / distribution (SHORT) | +1 |
+| PO3 phase: accumulation_zone (LONG) / distribution_zone (SHORT) | +1 |
 | SMC CHoCH/BOS khớp hướng trade | +1 |
 
-→ Tối đa +2 bonus. `effective_score = base + bonus`
+→ `effective_score = base (0–5) + bonus (0–2)`
 
 **Ngưỡng quyết định:**
-- base ≤ 2 → **"Thị trường chưa sẵn sàng."** — dừng phân tích
-- base 3 + bonus 0 → Đứng ngoài / chờ xác nhận thêm
-- base 3 + bonus ≥ 1 → Actionable (coi như 4)
+- base ≤ 2 → **"Thị trường chưa sẵn sàng."** — dừng
+- base 3 + bonus 0 → Đứng ngoài
+- base 3 + bonus ≥ 1 → Actionable
 - base ≥ 4 → Actionable
 
 ---
 
-## Bước 5 — M5 Entry Setup
+## Bước 4 — M5 Entry Setup
 
 ```
-chart_set_timeframe("5")
+mcp__tradingview__chart_set_timeframe("5")
 data_get_ohlcv(count=50)
-capture_screenshot("chart")
+mcp__tradingview__capture_screenshot("chart")
 ```
 
 Xác định:
 1. **Setup** theo §4: A+1 / A+2 / A+3 / A1 / A2 / B1 / B2 / C1
-   - A+3 ưu tiên nếu RSI divergence + SMC CHoCH gần giá
-   - B1 nếu đang trong Silver Bullet window (14–15h hoặc 21–22h VN)
-   - C1 nếu phát hiện Breaker Block qua TV snapshot
-2. **FVG** — đọc từ `data_get_pine_boxes(study_filter="FVG")` nếu có, hoặc tính từ M5 bars
-3. **Key levels** từ TV snapshot: EQH/EQL, Liquidity Swings, VP POC/HVN, PO3 boundaries
+2. **FVG** từ `data_get_pine_boxes(study_filter="FVG")` hoặc tính từ M5 bars
+3. **Key levels** từ snapshot: EQH/EQL, Liquidity Swings, VP POC/HVN, PO3 boundaries
 4. **Trigger** có chưa? 3A Engulfing / 3B Wick Rejection / 3C Sniper FVG
 
 Tính RR:
 ```
 entry  = FVG midpoint hoặc giá hiện tại
 sl     = phía sau wick sweep + buffer 1–2 pts
-tp1    = mức liquidity gần nhất (EQH/EQL hoặc VP HVN)
-risk   = abs(entry - sl)
-reward = abs(tp1 - entry)
-rr     = round(reward / risk, 1)
+tp1    = mức liquidity gần nhất (HVN hoặc EQH/EQL)
+rr     = round(abs(tp1 - entry) / abs(entry - sl), 1)
 ```
 
-**RR guard:** `rr < 1.5` → không đề xuất entry ("RR thấp — setup chưa đủ điều kiện")
+**RR guard:** `rr < 1.5` → dừng ("RR thấp — setup chưa đủ điều kiện")
 
 ---
 
-## Bước 6 — Pre-entry Check & Output §7
+## Bước 5 — Pre-entry Check & Output §7
 
-**Bắt buộc trả lời trước khi output signal:**
-> "Tại sao lệnh này có thể THUA?"
-> (Liệt kê 3–5 lý do cụ thể từ data, không bịa)
+**Bắt buộc:** "Tại sao lệnh này có thể THUA?" — 3–5 lý do từ data.
 
-**Xuất §7 Signal Output** theo format chuẩn:
+**Xuất §7 Signal Output:**
 
 ```
 Phân loại:  [setup code + tên]
@@ -190,7 +202,7 @@ Hành động: [Vào ngay / Đặt Limit / Đợi xác nhận / Đứng ngoài]
   2. [lý do có thể thua 2]
   3. ...
 
-📊 TV Snapshot:
+📊 TV Snapshot (cache: {AGE}s cũ):
   SMC Structure : [bullish/bearish/mixed]
   PO3 Phase     : [accumulation/manipulation/distribution]
   VP POC        : [giá POC] — giá đang [trên/dưới] = [premium/discount]
@@ -202,8 +214,16 @@ Hành động: [Vào ngay / Đặt Limit / Đợi xác nhận / Đứng ngoài]
 
 ## Quy tắc bắt buộc
 
-- **Không log lệnh** — skill này chỉ phân tích, user quyết định entry
-- Nếu muốn log → dùng `/open` hoặc `/auto-trade`
-- Score ≤ 2 → chỉ nói "Thị trường chưa sẵn sàng." + lý do ngắn gọn, không output signal
+- **Không log lệnh** — analysis-only. Muốn log → dùng `/open` hoặc `/auto-trade`
+- Score ≤ 2 → "Thị trường chưa sẵn sàng." + lý do ngắn, không output §7
 - Luôn chụp screenshot M5 trước khi output §7
 - Khôi phục timeframe về M5 sau khi hoàn tất
+- **Snapshot cache được ưu tiên** — không collect lại nếu còn mới (< 3 phút)
+
+## Token Budget
+
+| Trường hợp | MCP calls | Token ~ước lượng |
+|-----------|-----------|-----------------|
+| Snapshot fresh (< 3 phút) | 2–3 | ~1,500 |
+| Snapshot stale | 10–11 | ~5,000 |
+| TV không chạy + stale | 10–11 + launch | ~6,000 |

@@ -385,8 +385,13 @@ def compute_tv_bonus(smc, po3, vp, rsi, macd, trade_direction=None):
 
 # ── Main build snapshot ────────────────────────────────────────────────────
 
+_CURRENT_SYMBOL = "BTCUSD"  # set by caller via data["symbol"]
+
+
 def build_snapshot(data):
+    global _CURRENT_SYMBOL
     price         = data.get("price", 0)
+    _CURRENT_SYMBOL = data.get("symbol", "BTCUSD")
     study_values  = data.get("study_values", [])
     smc_labels    = data.get("smc_labels", [])
     po3_labels    = data.get("po3_labels", [])
@@ -419,8 +424,11 @@ def build_snapshot(data):
     tv_bias = "BULLISH" if bull_count > bear_count else \
               "BEARISH" if bear_count > bull_count else "MIXED"
 
+    now = datetime.datetime.now()
     snapshot = {
-        "timestamp":    datetime.datetime.now().strftime("%Y-%m-%dT%H:%M") + " GMT+7",
+        "timestamp":    now.strftime("%Y-%m-%dT%H:%M") + " GMT+7",
+        "ts_unix":      int(now.timestamp()),
+        "symbol":       _CURRENT_SYMBOL,
         "price":        price,
         "smc":          smc,
         "po3":          po3,
