@@ -1,0 +1,15 @@
+# requirements.txt
+# ─────────────────────────────────────────────────────────────────
+# This project uses ONLY the Python Standard Library.
+# No pip install is needed.
+#
+# Standard library modules in use:
+#   urllib.request  — HTTP GET/POST (Binance API, Yahoo Finance, Telegram Bot API)
+#   json            — JSON encode/decode for all API responses and checkpoints
+#   datetime        — Timestamps, session window calculation, UTC↔GMT+7 conversion
+#   pathlib         — Path resolution for market_state.json, monitor_state.json
+#   subprocess      — market_monitor.py calls trade_engine.py --silent as subprocess
+#   sys             — sys.argv (CLI mode flags: --json, --silent), sys.executable
+#
+# Python version requirement: 3.8+
+# ─────────────────────────────────────────────────────────────────

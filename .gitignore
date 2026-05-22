@@ -3,3 +3,30 @@ monitor_state.json
 __pycache__/
 *.pyc
 .DS_Store
+
+# Logs
+*.log
+*.log.*
+
+# TradingView runtime
+.tradingview_chromium_profile/
+tv_snapshot.json
+screenshots/
+
+# App state (runtime)
+alert_levels.json
+trading_mode.json
+market_monitor.lock
+
+# Secrets
+.secrets.sh
+
+# Claude Code internals (keep only projects/ and plans/)
+.claude/*
+!.claude/projects/
+!.claude/plans/
+
+# Shell state
+.zsh_history
+.zsh_sessions/
+.zprofile.pysave

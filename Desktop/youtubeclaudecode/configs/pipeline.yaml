@@ -1,0 +1,53 @@
+# YouTube AI Factory v4.1 — Pipeline Configuration
+# All batch sizes, retry settings, delays, and provider configs
+
+pipeline:
+  checkpoint_interval: 1          # Save manifest after every N batches
+  stage_timeout_seconds: 3600     # Max time per stage (1 hour)
+
+providers:
+  kieai:
+    model: "imagen-4"
+    aspect_ratio: "16:9"
+    batch_size: 5                 # Images per batch
+    batch_delay_seconds: 3        # Delay between batches
+    max_retries: 3                # Per asset
+    retry_backoff: [2, 4, 8]      # Seconds per retry attempt
+    timeout_seconds: 120          # Per API call
+    dead_letter_after: 3          # Failures before dead_letter
+
+  elevenlabs:
+    model: "eleven_multilingual_v2"
+    stability: 0.45               # Voice stability (0-1)
+    clarity: 0.75                 # Similarity boost (0-1)
+    chunk_by: "act"               # Split narration by act
+    batch_delay_seconds: 2
+    max_retries: 3
+    retry_backoff: [1, 3, 5]
+    timeout_seconds: 300          # Longer for long audio
+    output_format: "mp3_44100_128"
+
+  deepseek:
+    model: "deepseek-v4"
+    endpoint: "proxy"             # Routed through proxy
+
+editing:
+  fps: 24
+  resolution: [1920, 1080]
+  video_codec: "libx264"
+  crf: 18                         # Quality (lower = better)
+  audio_codec: "aac"
+  audio_bitrate: "320k"
+  motion_default: "ken_burns_slow_zoom_in"
+
+logging:
+  level: "INFO"
+  format: "jsonl"
+  output: "logs/pipeline.log"
+
+validation:
+  image_min_size_kb: 50
+  image_formats: ["jpeg", "jpg", "png"]
+  audio_min_duration_sec: 10
+  audio_formats: ["mp3", "wav"]
+  checksum_algorithm: "sha256"

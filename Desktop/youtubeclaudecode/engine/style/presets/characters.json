@@ -1,0 +1,88 @@
+{
+  "jesus-portrait-v1": {
+    "name": "Jesus Christ",
+    "locked_traits": {
+      "ethnicity": "Middle Eastern",
+      "skin": "warm olive, not pale",
+      "hair": "dark brown to black, shoulder-length, slightly wavy",
+      "eyes": "deep brown, almond-shaped, expressive",
+      "nose": "prominent Middle Eastern, straight",
+      "beard": "full, dark brown, neatly trimmed",
+      "build": "lean, carpenter's frame, not muscular",
+      "age": "early 30s"
+    },
+    "expression_range": [
+      "compassionate_warmth",
+      "deep_sorrow_controlled",
+      "quiet_authority",
+      "calm_presence",
+      "silent_tears",
+      "intense_prayer",
+      "gentle_teaching"
+    ],
+    "forbidden_traits": [
+      "european_caucasian_features",
+      "blonde_hair",
+      "blue_eyes",
+      "white_glowing_skin",
+      "halo",
+      "angry_shouting",
+      "aggressive_gestures"
+    ],
+    "clothing": {
+      "robe_colors": ["cream", "off-white", "natural_linen"],
+      "style": "first-century Jewish, simple, unadorned, ankle-length",
+      "mantle": "navy or deep blue stripe optional",
+      "forbidden": ["white-glow-robes", "royal-purple", "gold-trim", "modern-clothing"]
+    }
+  },
+  "mary": {
+    "name": "Mary (various)",
+    "locked_traits": {
+      "ethnicity": "Middle Eastern",
+      "skin": "warm olive",
+      "hair": "dark brown, long, covered or partially covered",
+      "age_range": "20s to 50s depending on context"
+    },
+    "expression_range": ["grief", "devotion", "awe", "worship", "contemplation"],
+    "clothing": {
+      "robe_colors": ["muted_navy", "soft_sepia", "earth_tone"],
+      "style": "first-century Jewish women's robes, head covering"
+    }
+  },
+  "martha": {
+    "name": "Martha of Bethany",
+    "locked_traits": {
+      "ethnicity": "Middle Eastern",
+      "skin": "warm olive",
+      "hair": "dark brown, practical style",
+      "expression_range": ["practical_concern", "grief_active", "confrontation_faith", "service"]
+    },
+    "clothing": {
+      "robe_colors": ["sepia", "warm_brown", "earth_tone"],
+      "style": "practical working clothes, first-century"
+    }
+  },
+  "peter": {
+    "name": "Peter (Simon Peter)",
+    "locked_traits": {
+      "ethnicity": "Middle Eastern",
+      "skin": "olive, weathered from fishing",
+      "hair": "dark, short, practical",
+      "beard": "full, untrimmed",
+      "build": "stocky, muscular from fishing",
+      "age": "30s to 40s",
+      "expression_range": ["impulsive_loyalty", "fear_denial", "broken_repentance", "bold_faith"]
+    },
+    "clothing": {
+      "style": "fisherman's clothing, simple tunic, practical"
+    }
+  },
+  "generic_crowd": {
+    "locked_traits": {
+      "ethnicity": "all Middle Eastern",
+      "clothing": "first-century Judean, various earth tones, robes and tunics",
+      "forbidden": ["modern_clothing", "western_features", "bright_colors"]
+    }
+  }
+}
