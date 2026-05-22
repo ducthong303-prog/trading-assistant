@@ -1,0 +1,34 @@
+{
+  "dna": {
+    "medium": "watercolor on cream paper",
+    "style": "modern Bible storybook illustration",
+    "outline": "hand-drawn thin black or sepia ink, loose but intentional",
+    "wash": "soft translucent watercolor wash, visible paper texture",
+    "background": "cream paper (#F5EBD8), minimum 55% negative space",
+    "lighting": "soft diffuse light from upper left, no harsh shadows",
+    "edge_handling": "subject floats on cream background, edges fade to paper"
+  },
+  "quality_descriptors": [
+    "watercolor illustration",
+    "hand-drawn ink outlines",
+    "white cream paper background",
+    "soft translucent wash",
+    "visible watercolor paper texture",
+    "modern Bible storybook quality",
+    "Middle Eastern accurate characters",
+    "period-appropriate clothing"
+  ],
+  "intensity_levels": {
+    "light": "pale wash, mostly cream, hints of color",
+    "medium": "balanced wash, visible color but paper dominates",
+    "deep": "saturated watercolor, still transparent, paper visible through color"
+  },
+  "emotional_wash_intensity": {
+    "sorrow": "medium-deep navy and sepia, heavier wash",
+    "hope": "light-medium, cream dominant, sky blue hints",
+    "tension": "medium, burnt orange accents, dark navy shadows",
+    "peace": "light, cream heavy, soft sepia and sky blue",
+    "triumph": "medium, warm gold and burnt orange, cream sky",
+    "contemplation": "light-medium, sepia dominant, cream negative space"
+  }
+}

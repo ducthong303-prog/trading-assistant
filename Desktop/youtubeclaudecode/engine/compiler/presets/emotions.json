@@ -1,0 +1,112 @@
+{
+  "controlled_sorrow": {
+    "label": "Controlled Sorrow",
+    "face": "tears streaming silently, eyes open, composed expression, deep but restrained emotion",
+    "body": "still, upright, holding composure, slight tension in shoulders",
+    "vibe": "the weight is internal, not performative, strength holding back an ocean",
+    "palette_mood": "sorrow",
+    "shot_preference": "extreme_close_up_face",
+    "used_in": ["jesus_weeps_at_tomb", "mary_quiet_grief"],
+    "do_not": "open mouth sobbing, collapsed posture, melodramatic"
+  },
+  "loud_lament": {
+    "label": "Loud Lament",
+    "face": "mouth open in wail, tears streaming, face contorted with grief, eyes red",
+    "body": "shoulders shaking, hands helpless at sides or raised in lament",
+    "vibe": "public, audible, unrestrained grief — eklausten",
+    "palette_mood": "tension",
+    "shot_preference": "medium_shot",
+    "used_in": ["jesus_weeps_over_jerusalem"],
+    "do_not": "silent tears, calm face, controlled posture"
+  },
+  "agony_collapse": {
+    "label": "Agony / Collapse",
+    "face": "face-down in dirt, mouth open in scream, tears mixing with dust, blood-tinged sweat",
+    "body": "prostrate, fully collapsed, arms forward, fingers gripping ground",
+    "vibe": "the darkest moment, alone, abandonment, krauges ischyras — strong crying",
+    "palette_mood": "sorrow",
+    "shot_preference": "full_body_action",
+    "used_in": ["jesus_gethsemane"],
+    "do_not": "kneeling prayer, calm submission, clean composed suffering"
+  },
+  "compassionate_presence": {
+    "label": "Compassionate Presence",
+    "face": "gentle eyes, slight warm expression, fully present, no hurry",
+    "body": "seated or standing at eye level, one hand extended or resting gently",
+    "vibe": "I am here, I see you, no fixing just being",
+    "palette_mood": "peace",
+    "shot_preference": "two_shot",
+    "used_in": ["jesus_with_modern_figure", "jesus_healing"],
+    "do_not": "preaching posture, hand raised in blessing, distant holy expression"
+  },
+  "grief_active": {
+    "label": "Active Grief",
+    "face": "anguished, almost accusing, holding in words for days, face of confrontation",
+    "body": "one hand pressed to chest, other reaching forward, standing, active",
+    "vibe": "Martha's grief — the one who cannot sit still",
+    "palette_mood": "tension",
+    "shot_preference": "medium_shot",
+    "used_in": ["martha_confronts_jesus"],
+    "do_not": "passive crying, collapsed posture, silent tears"
+  },
+  "grief_collapsed": {
+    "label": "Collapsed Grief",
+    "face": "hidden or downcast, hair covering face, expression of being emptied out",
+    "body": "sitting on floor against wall, head down, arms limp, inward and still",
+    "vibe": "Mary's grief — the one who has no words left",
+    "palette_mood": "sorrow",
+    "shot_preference": "medium_shot",
+    "used_in": ["mary_collapsed_grief"],
+    "do_not": "active gestures, reaching out, standing"
+  },
+  "awe_wonder": {
+    "label": "Awe / Wonder",
+    "face": "eyes wide, mouth slightly open, the moment of impossible becoming real",
+    "body": "still, frozen in the moment, mid-breath",
+    "vibe": "Lazarus walking out, resurrection, something that cannot be happening",
+    "palette_mood": "hope",
+    "shot_preference": "wide_establishing",
+    "used_in": ["lazarus_emerges", "empty_tomb"],
+    "do_not": "skeptical expression, celebration, triumphant pose"
+  },
+  "celebration_foreboding": {
+    "label": "Celebration with Foreboding",
+    "face": "crowd joyful, Jesus's face calm and distant, knowing",
+    "body": "crowd waving palms, Jesus riding donkey, stillness amid chaos",
+    "vibe": "Palm Sunday — the celebration that misses the point",
+    "palette_mood": "triumph",
+    "shot_preference": "wide_establishing",
+    "used_in": ["palm_sunday_procession"],
+    "do_not": "Jesus celebrating, Jesus smiling broadly, triumphant king pose"
+  },
+  "quiet_presence": {
+    "label": "Quiet Presence",
+    "face": "neutral-warm, attentive, listening, calm",
+    "body": "relaxed, present, not performing",
+    "vibe": "the moment after the storm, dawn light, stillness",
+    "palette_mood": "peace",
+    "shot_preference": "medium_shot",
+    "used_in": ["burial_scene", "empty_tomb_dawn", "closing_scene"],
+    "do_not": "action, dramatic lighting, intensity"
+  },
+  "dread_isolation": {
+    "label": "Dread / Isolation",
+    "face": "weight of what is coming, heavy brow, shadow across eyes",
+    "body": "hunched, alone, carrying weight, leaning forward under burden",
+    "vibe": "Gethsemane before the prayer, the weight before the fall",
+    "palette_mood": "tension",
+    "shot_preference": "wide_establishing",
+    "used_in": ["gethsemane_night", "betrayal_garden"],
+    "do_not": "action, conflict, visible enemy"
+  },
+  "resolution_peace": {
+    "label": "Resolution / Peace",
+    "face": "calm, resolved, slight peace, the exhale after holding breath",
+    "body": "still, composed, at rest",
+    "vibe": "the ending that opens to something new, unanswered questions at peace",
+    "palette_mood": "hope",
+    "shot_preference": "close_up_face",
+    "used_in": ["closing_scene", "final_composite"],
+    "do_not": "triumphant, preachy, resolved-everything-answered"
+  }
+}
