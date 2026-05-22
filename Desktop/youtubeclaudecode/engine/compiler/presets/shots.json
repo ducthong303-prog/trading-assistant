@@ -1,0 +1,38 @@
+{
+  "templates": {
+    "opening_hook": {
+      "pattern": "{character} {emotion}, {shot}, watercolor on cream paper",
+      "example": "Jesus close-up face, single silent tear, watercolor on cream paper",
+      "duration_sec": 90,
+      "ken_burns": "ultra_slow_zoom_in"
+    },
+    "establishing_scene": {
+      "pattern": "{location} in {time_of_day}, watercolor panorama, {mood} atmosphere",
+      "example": "Bethany village at late afternoon, watercolor panorama, quiet heaviness",
+      "duration_sec": 90,
+      "ken_burns": "slow_pan"
+    },
+    "emotional_peak": {
+      "pattern": "{character} {emotion} at {location}, watercolor intense moment",
+      "example": "Jesus collapsed face-down in Gethsemane, watercolor intense moment",
+      "duration_sec": 120,
+      "ken_burns": "slow_zoom_in"
+    },
+    "two_character_scene": {
+      "pattern": "{char1} and {char2} at {location}, watercolor interaction",
+      "example": "Jesus and Martha at edge of Bethany, watercolor interaction",
+      "duration_sec": 90,
+      "ken_burns": "parallax"
+    },
+    "bible_verse_card": {
+      "pattern": "{scene_description}, Bible verse text '{verse}' in deep navy serif at bottom",
+      "duration_sec": 60,
+      "ken_burns": "subtle_zoom"
+    },
+    "closing_scene": {
+      "pattern": "{character} with {subject}, timeless space, watercolor hope",
+      "duration_sec": 90,
+      "ken_burns": "slow_dolly_out"
+    }
+  }
+}

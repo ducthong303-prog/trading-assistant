@@ -1,0 +1,60 @@
+{
+  "cinematic_shots": {
+    "extreme_close_up_face": {
+      "framing": "face fills 70% of frame, eyes at upper-third line",
+      "crop": "crown of head to chin",
+      "use": "emotional intensity, tears, eye contact",
+      "negative_space": "40% cream background",
+      "ken_burns": "ultra_slow_zoom_in_eyes"
+    },
+    "close_up_face": {
+      "framing": "head and shoulders, subject centered",
+      "crop": "top of head to mid-chest",
+      "use": "expressions, dialogue equivalents, reactions",
+      "negative_space": "60% cream background",
+      "ken_burns": "slow_zoom_in_1_08x"
+    },
+    "medium_shot": {
+      "framing": "waist up, subject centered or rule-of-thirds",
+      "use": "action, interaction between figures, hand gestures",
+      "negative_space": "55% cream background",
+      "ken_burns": "gentle_pan_or_parallax"
+    },
+    "two_shot": {
+      "framing": "two figures, balanced composition, eye-level",
+      "use": "confrontation, conversation, contrast",
+      "negative_space": "50% cream background",
+      "ken_burns": "slow_dolly_out_or_parallax"
+    },
+    "wide_establishing": {
+      "framing": "landscape or village or city view, figures small in frame",
+      "use": "setting context, transitions between acts",
+      "negative_space": "70% sky as cream wash",
+      "ken_burns": "slow_pan_across_scene"
+    },
+    "full_body_action": {
+      "framing": "full figure, ground context visible",
+      "use": "walking, falling, dramatic physical moments",
+      "negative_space": "55% cream background",
+      "ken_burns": "slow_tilt_or_zoom"
+    },
+    "triptych": {
+      "framing": "three equal panels across 16:9 frame, thin separator gap",
+      "use": "comparison, before-during-after, three-tears summary",
+      "negative_space": "40% between panels",
+      "ken_burns": "none_or_slow_left_to_right"
+    },
+    "tomb_interior_exterior": {
+      "framing": "stone tomb entrance with figure emerging or standing",
+      "use": "Lazarus, resurrection moments",
+      "negative_space": "50% sky and stone texture",
+      "ken_burns": "slow_dolly_out_reveal"
+    }
+  },
+  "rules": {
+    "aspect_ratio": "16:9",
+    "subject_never_touches_edges": true,
+    "ink_outlines_on_subject_and_foreground_only": true,
+    "background_always_watercolor_wash_not_solid": true
+  }
+}

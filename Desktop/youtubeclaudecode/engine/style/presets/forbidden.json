@@ -1,0 +1,45 @@
+{
+  "universal_negative_prompt": "no photorealistic, no oil painting, no dark cinematic atmosphere, no full-frame edge-to-edge composition, no black background, no CGI, no 3D render, no anime, no Disney cartoon style, no anachronisms, no modern objects, no European-featured Middle Eastern characters, no extra fingers, no distorted hands, no over-saturated colors, no gibberish text",
+
+  "forbidden_styles": [
+    "photorealistic",
+    "hyperrealistic",
+    "oil_painting_impasto",
+    "digital_art_smooth",
+    "cinematic_dark_moody",
+    "full_frame_no_negative_space",
+    "black_or_dark_backgrounds",
+    "edge_to_edge_composition",
+    "fantasy_epic_style",
+    "comic_book_style",
+    "stained_glass_style"
+  ],
+
+  "forbidden_subjects": [
+    "european_jesus",
+    "blonde_jesus",
+    "blue_eyed_jesus",
+    "glowing_halo",
+    "angels_with_wings_visible",
+    "demonic_figures",
+    "modern_objects_in_biblical_scenes",
+    "anachronistic_architecture",
+    "gore_or_excessive_blood",
+    "sexualized_figures"
+  ],
+
+  "forbidden_text_elements": [
+    "gibberish_text_in_image",
+    "ai_generated_lettering",
+    "unreadable_scribbles",
+    "text_not_matching_prompt"
+  ],
+
+  "forbidden_compositions": [
+    "subject_touching_frame_edge",
+    "subject_cropped_at_joints",
+    "face_obscured_by_shadow",
+    "hands_covering_face_completely",
+    "back_of_head_only"
+  ]
+}

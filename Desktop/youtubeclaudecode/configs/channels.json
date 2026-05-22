@@ -1,0 +1,18 @@
+{
+  "channels": [
+    {
+      "name": "bible-explainer",
+      "display_name": "Bible Explainer",
+      "status": "active",
+      "niche": "Bible explainer videos",
+      "style": "watercolor-bible-illustration",
+      "competitors": ["Deep Made Simple", "Bible Made Simple", "Plain Truth"],
+      "created": "2026-05-14",
+      "videos_published": 0,
+      "target_subs": 100000,
+      "upload_schedule": "weekly"
+    }
+  ],
+  "style_config": "brain/prompts/style-signature.md",
+  "default_channel": "bible-explainer"
+}

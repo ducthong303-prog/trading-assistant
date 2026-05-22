@@ -1,0 +1,99 @@
+// ══════════════════════════════════════════════════════════════
+// Order Flow Delta [SMC System] — Pine Script v6
+// ══════════════════════════════════════════════════════════════
+// Dùng request.footprint() (TV Premium) để tính true bid/ask delta.
+// Claude đọc values qua data_get_study_values MCP tool.
+//
+// Values expose qua plot():
+//   "Bar Delta"        — delta nến hiện tại (buy_vol − sell_vol)
+//   "CVD"              — cumulative delta, reset mỗi ngày
+//   "Delta % Vol"      — |delta| / volume * 100 (thấp = absorption)
+//   "Absorption"       — 1=bull absorption, -1=bear, 0=none
+//   "Delta Flip"       — 1=flip bullish, -1=flip bearish, 0=none
+//   "CVD Divergence"   — 1=bullish div, -1=bearish div, 0=none
+//   "Vol vs SMA"       — volume / SMA(20) ratio (≥1.5 = spike)
+//   "Stacked Imbalance"— 1=bull stack, -1=bear stack, 0=none
+// ══════════════════════════════════════════════════════════════
+//@version=6
+indicator("Order Flow Delta [SMC System]", shorttitle="OF·Delta",
+          overlay=false, max_bars_back=500)
+
+// ── Inputs ────────────────────────────────────────────────────
+ticks_per_row       = input.int(10,   "Ticks Per Row",           minval=1,            group="Footprint")
+va_percent          = input.int(70,   "Value Area %",            minval=1, maxval=99,  group="Footprint")
+cvd_lookback        = input.int(20,   "CVD Divergence Lookback", minval=5,            group="Footprint")
+absorption_vol_mult = input.float(2.0,"Absorption Vol Mult",     minval=1.0,          group="Absorption")
+absorption_delta_th = input.float(15.0,"Absorption Delta % Vol", minval=1.0, maxval=49.0, group="Absorption")
+imbalance_ratio     = input.float(3.0, "Stacked Imbalance Ratio (×)", minval=1.5,    group="Footprint")
+
+// ── request.footprint() ───────────────────────────────────────
+// Verified API (Pine v6): request.footprint(ticks_per_row, va_percent)
+// Returns series footprint — check not na() trước khi dùng
+fp = request.footprint(ticks_per_row, va_percent)
+
+// ── Bar-level delta (confirmed: fp.delta(), fp.buy_volume(), etc.) ──
+bar_delta   = not na(fp) ? fp.delta()        : 0.0
+bar_buy_vol = not na(fp) ? fp.buy_volume()   : 0.0
+bar_sell_vol= not na(fp) ? fp.sell_volume()  : 0.0
+bar_vol     = not na(fp) ? fp.total_volume() : volume
+
+// ── Volume SMA(20) ────────────────────────────────────────────
+vol_sma20  = ta.sma(volume, 20)
+vol_vs_sma = vol_sma20 > 0 ? volume / vol_sma20 : 1.0
+
+// ── Delta % of Volume ─────────────────────────────────────────
+delta_pct_vol = bar_vol > 0 ? math.abs(bar_delta) / bar_vol * 100.0 : 50.0
+
+// ── CVD — reset mỗi ngày ──────────────────────────────────────
+is_new_session = ta.change(time("D")) != 0
+var float cvd = 0.0
+cvd := is_new_session ? bar_delta : cvd + bar_delta
+
+// ── Absorption Detection ──────────────────────────────────────
+vol_spike       = volume > vol_sma20 * absorption_vol_mult
+low_delta       = delta_pct_vol < absorption_delta_th
+absorption_bull = vol_spike and low_delta and close > open
+absorption_bear = vol_spike and low_delta and close < open
+absorption_sig  = absorption_bull ? 1 : absorption_bear ? -1 : 0
+
+// ── Delta Flip Detection ──────────────────────────────────────
+delta_flip_bull = bar_delta > 0 and bar_delta[1] < 0 and volume > vol_sma20 * 1.5
+delta_flip_bear = bar_delta < 0 and bar_delta[1] > 0 and volume > vol_sma20 * 1.5
+delta_flip_sig  = delta_flip_bull ? 1 : delta_flip_bear ? -1 : 0
+
+// ── CVD Divergence ────────────────────────────────────────────
+price_at_ll  = low  == ta.lowest(low,  cvd_lookback)
+price_at_hh  = high == ta.highest(high, cvd_lookback)
+cvd_at_ll    = cvd  == ta.lowest(cvd,  cvd_lookback)
+cvd_at_hh    = cvd  == ta.highest(cvd, cvd_lookback)
+cvd_div_bull = price_at_ll and not cvd_at_ll
+cvd_div_bear = price_at_hh and not cvd_at_hh
+cvd_div_sig  = cvd_div_bull ? 1 : cvd_div_bear ? -1 : 0
+
+// ── Stacked Imbalance ─────────────────────────────────────────
+// Row-level API chưa xác nhận — dùng bar-level delta spike thay thế.
+// Nếu bar delta cùng chiều với 2 bars trước = "stacked" momentum.
+bar_delta_bull_stack = bar_delta > 0 and bar_delta[1] > 0 and bar_delta[2] > 0
+bar_delta_bear_stack = bar_delta < 0 and bar_delta[1] < 0 and bar_delta[2] < 0
+stacked_imbalance = bar_delta_bull_stack ? 1 : bar_delta_bear_stack ? -1 : 0
+
+// ── Plots (đọc được bởi data_get_study_values) ───────────────
+plot(bar_delta,         "Bar Delta",
+     color = bar_delta >= 0 ? color.new(color.green, 0) : color.new(color.red, 0),
+     style = plot.style_histogram)
+plot(cvd,               "CVD",            color = color.new(color.blue, 30),   linewidth = 2)
+plot(delta_pct_vol,     "Delta % Vol",    color = color.new(color.gray, 50))
+plot(absorption_sig,    "Absorption",     color = color.new(color.orange, 0))
+plot(delta_flip_sig,    "Delta Flip",     color = color.new(color.purple, 0))
+plot(cvd_div_sig,       "CVD Divergence", color = color.new(color.yellow, 0))
+plot(vol_vs_sma,        "Vol vs SMA",     color = color.new(color.teal, 50))
+plot(stacked_imbalance, "Stacked Imbalance", color = color.new(color.white, 0))
+
+// ── Visual Alerts trên chart ──────────────────────────────────
+bgcolor(absorption_bull ? color.new(color.green, 88) :
+        absorption_bear ? color.new(color.red,   88) : na,
+        title = "Absorption BG")
+plotshape(delta_flip_bull, "Flip Bull ▲", shape.triangleup,   location.bottom, color.lime,    size = size.small)
+plotshape(delta_flip_bear, "Flip Bear ▼", shape.triangledown, location.top,    color.red,     size = size.small)
+plotshape(cvd_div_bull,    "CVD Div ◆",   shape.diamond,      location.bottom, color.aqua,    size = size.tiny)
+plotshape(cvd_div_bear,    "CVD Div ◇",   shape.diamond,      location.top,    color.fuchsia, size = size.tiny)

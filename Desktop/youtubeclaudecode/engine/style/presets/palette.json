@@ -1,0 +1,30 @@
+{
+  "name": "Watercolor Bible Illustration Palette",
+  "primary": {
+    "deep_navy":     { "hex": "#1E2A4A", "use": "text, title, deep shadows, robes, night scenes" },
+    "burnt_orange":  { "hex": "#B25D29", "use": "warmth, accents, earth, emotional intensity" },
+    "cream":         { "hex": "#F5EBD8", "use": "background base, negative space, robes" },
+    "sepia":         { "hex": "#8B6F47", "use": "ink outlines, warm shadows, earth, wood" }
+  },
+  "secondary": {
+    "soft_grey":     { "hex": "#A89B8C", "use": "stone, subtle shadows, architecture" },
+    "sky_blue":      { "hex": "#B8D4E0", "use": "distant sky, subtle cool accents" },
+    "olive_green":   { "hex": "#7A8B5E", "use": "foliage, olive trees, gardens" },
+    "dust_rose":     { "hex": "#C4A882", "use": "sunset, warm light, skin highlights" }
+  },
+  "mood_mappings": {
+    "sorrow":        ["#1E2A4A", "#8B6F47", "#A89B8C", "#F5EBD8"],
+    "hope":          ["#F5EBD8", "#B8D4E0", "#B25D29", "#7A8B5E"],
+    "tension":       ["#1E2A4A", "#B25D29", "#8B6F47", "#A89B8C"],
+    "peace":         ["#F5EBD8", "#B8D4E0", "#7A8B5E", "#C4A882"],
+    "triumph":       ["#F5EBD8", "#B25D29", "#1E2A4A", "#C4A882"],
+    "contemplation": ["#1E2A4A", "#F5EBD8", "#A89B8C", "#8B6F47"]
+  },
+  "rules": {
+    "background_always_cream": true,
+    "negative_space_min_55_percent": true,
+    "no_full_frame_dark_backgrounds": true,
+    "ink_color": "#8B6F47 sepia or #1E2A4A navy",
+    "text_color": "#1E2A4A deep navy"
+  }
+}

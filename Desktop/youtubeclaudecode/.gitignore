@@ -1,0 +1,29 @@
+# YouTube AI Factory v4.1 — API Keys & Secrets
+configs/.env
+
+# Generated assets (too large for git)
+channels/*/images/*
+channels/*/audio/*
+channels/*/video/*
+channels/*/thumbnails/*
+!channels/*/images/.gitkeep
+!channels/*/audio/.gitkeep
+!channels/*/video/.gitkeep
+!channels/*/thumbnails/.gitkeep
+
+# Logs & temp
+logs/
+*.log
+temp/
+temp_segments/
+working/
+
+# Pipeline state (transient)
+engine/manifest/active/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS files
+.DS_Store
